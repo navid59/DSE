@@ -1,0 +1,83 @@
+version: '3.9'
+
+services:
+  php:
+    build:
+      context: ..
+      dockerfile: docker/php.Dockerfile
+    ports:
+      - "8080:80"
+    networks:
+      - marketplace_net
+    volumes:
+      - ./frontend-php:/var/www/html
+
+  mysql:
+    image: mysql:8
+    restart: always
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: tamasba118
+      MYSQL_DATABASE: marketplace
+    networks:
+      - marketplace_net
+    volumes:
+      - ./db-init:/docker-entrypoint-initdb.d
+      - ./mysql-custom.conf:/etc/mysql/conf.d/mysql-custom.conf  # Mount the custom MySQL configuration file
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    platform: linux/amd64  # Specify the platform
+    restart: always
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: mysql
+    networks:
+      - marketplace_net
+
+  ray-head:
+    build:
+      context: ..
+      dockerfile: docker/ray.Dockerfile
+    command: ray start --head --dashboard-host=0.0.0.0 --block
+    ports:
+      - "8265:8265"  # Ray dashboard
+      - "6379:6379"  # Ray Redis port
+    networks:
+      - marketplace_net
+    volumes:
+      - ./backend-ray:/app
+
+  merchant_a:
+    build:
+      context: ..
+      dockerfile: docker/ray.Dockerfile
+    command: python /app/merchant_node.py --merchant-id=merchant_a
+    ports:
+      - "9001:9000"
+    networks:
+      - marketplace_net
+    volumes:
+      - ./backend-ray:/app
+    depends_on:
+      - ray-head
+
+  merchant_b:
+    build:
+      context: ..
+      dockerfile: docker/ray.Dockerfile
+    command: python /app/merchant_node.py --merchant-id=merchant_b
+    ports:
+      - "9002:9000"
+    networks:
+      - marketplace_net
+    volumes:
+      - ./backend-ray:/app
+    depends_on:
+      - ray-head
+
+networks:
+  marketplace_net:
+    driver: bridge
