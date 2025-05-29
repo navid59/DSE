@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  zookeeper:
+    image: zookeeper:3.7
+    platform: linux/amd64
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    networks:
+      - hbase-net
+
+  hbase-master:
+    image: harisekhon/hbase
+    platform: linux/amd64
+    container_name: hbase-master
+    environment:
+      HBASE_MASTER: "true"
+      HBASE_REGIONSERVER: "false"
+      ZOOKEEPER_QUORUM: zookeeper
+    depends_on:
+      - zookeeper
+    ports:
+      - "16010:16010"  # HBase Web UI
+      - "9090:9090"    # Thrift server
+    networks:
+      - hbase-net
+
+  hbase-regionserver-1:
+    image: harisekhon/hbase
+    platform: linux/amd64
+    container_name: hbase-rs1
+    environment:
+      HBASE_MASTER: "false"
+      HBASE_REGIONSERVER: "true"
+      ZOOKEEPER_QUORUM: zookeeper
+    depends_on:
+      - hbase-master
+    networks:
+      - hbase-net
+
+  hbase-regionserver-2:
+    image: harisekhon/hbase
+    platform: linux/amd64
+    container_name: hbase-rs2
+    environment:
+      HBASE_MASTER: "false"
+      HBASE_REGIONSERVER: "true"
+      ZOOKEEPER_QUORUM: zookeeper
+    depends_on:
+      - hbase-master
+    networks:
+      - hbase-net
+
+networks:
+  hbase-net:
+    driver: bridge
